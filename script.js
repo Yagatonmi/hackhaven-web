@@ -1,175 +1,250 @@
-// Aurora Landing — script.js
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const docEl = document.documentElement;
+  const root = document.documentElement;
+  const header = document.querySelector("[data-header]");
+  const menu = document.querySelector("[data-menu]");
+  const navToggleBtn = document.querySelector("[data-nav-toggle]");
+  const themeToggleBtn = document.querySelector("[data-theme-toggle]");
+  const primaryMenu = document.getElementById("primary-menu");
 
-  // Theme handling -----------------------------------------------------------
-  const THEME_KEY = 'aurora-theme';
-  const savedTheme = localStorage.getItem(THEME_KEY);
-  if (savedTheme === 'light' || savedTheme === 'dark') {
-    docEl.setAttribute('data-theme', savedTheme);
-  } else {
-    // Respect system preference on first load
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    docEl.setAttribute('data-theme', systemDark ? 'dark' : 'light');
+  // Theme handling
+  const STORAGE_KEY = "aurora-theme";
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function setTheme(theme) {
+    // theme: 'light' | 'dark' | 'auto'
+    root.setAttribute("data-theme", theme);
+  }
+
+  function loadInitialTheme() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "light" || stored === "dark") {
+      setTheme(stored);
+      return;
+    }
+    setTheme("auto");
   }
 
   function toggleTheme() {
-    const current = docEl.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    docEl.setAttribute('data-theme', next);
-    localStorage.setItem(THEME_KEY, next);
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) themeToggle.setAttribute('aria-pressed', String(next === 'dark'));
-  }
-
-  const themeToggleBtn = document.getElementById('theme-toggle');
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', toggleTheme);
-    themeToggleBtn.setAttribute('aria-pressed', String(docEl.getAttribute('data-theme') === 'dark'));
-  }
-
-  // Mobile menu --------------------------------------------------------------
-  const menuToggle = document.getElementById('menu-toggle');
-  const navLinks = document.getElementById('nav-links');
-  if (menuToggle && navLinks) {
-    menuToggle.addEventListener('click', () => {
-      const isOpen = navLinks.getAttribute('data-open') === 'true';
-      const next = !isOpen;
-      navLinks.setAttribute('data-open', String(next));
-      menuToggle.setAttribute('aria-expanded', String(next));
-      if (next) {
-        // Trap focus to the first link for accessibility on mobile
-        const firstLink = navLinks.querySelector('a');
-        if (firstLink) firstLink.focus();
-      } else {
-        menuToggle.focus();
-      }
-    });
-
-    // Close on link click (mobile)
-    navLinks.addEventListener('click', (e) => {
-      const target = e.target;
-      if (target && target.matches('a')) {
-        navLinks.setAttribute('data-open', 'false');
-        menuToggle.setAttribute('aria-expanded', 'false');
-      }
-    });
-  }
-
-  // Smooth scrolling with sticky header offset ------------------------------
-  function getHeaderOffsetPx() {
-    const header = document.querySelector('.site-header');
-    return header ? (header.getBoundingClientRect().height + 10) : 0;
-  }
-
-  function scrollToWithOffset(targetEl) {
-    if (!targetEl) return;
-    const y = targetEl.getBoundingClientRect().top + window.pageYOffset - getHeaderOffsetPx();
-    window.scrollTo({ top: y, behavior: 'smooth' });
-  }
-
-  document.addEventListener('click', (e) => {
-    const link = e.target.closest('a[href^="#"]');
-    if (!link) return;
-    const href = link.getAttribute('href');
-    if (!href || href.length <= 1) return;
-    const id = href.slice(1);
-    const target = document.getElementById(id);
-    if (target) {
-      e.preventDefault();
-      scrollToWithOffset(target);
+    const current = root.getAttribute("data-theme") || "auto";
+    if (current === "auto") {
+      const next = prefersDark.matches ? "light" : "dark";
+      localStorage.setItem(STORAGE_KEY, next);
+      setTheme(next);
+      return;
     }
-  });
-
-  // Scroll reveal ------------------------------------------------------------
-  const revealElements = Array.from(document.querySelectorAll('.reveal'));
-  if (revealElements.length && !prefersReducedMotion) {
-    const io = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          io.unobserve(entry.target);
-        }
-      }
-    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.1 });
-
-    revealElements.forEach(el => io.observe(el));
-  } else {
-    // If reduced motion, show immediately
-    revealElements.forEach(el => el.classList.add('is-visible'));
+    const next = current === "dark" ? "light" : "dark";
+    localStorage.setItem(STORAGE_KEY, next);
+    setTheme(next);
   }
 
-  // 3D tilt on cards ---------------------------------------------------------
-  const tiltCards = Array.from(document.querySelectorAll('.tilt'));
-  if (tiltCards.length) {
-    const strength = 12; // degrees
+  function handleSystemThemeChange() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === null || stored === "auto") {
+      setTheme("auto");
+    }
+  }
 
-    function handlePointerMove(event, card) {
-      const rect = card.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const percentX = (event.clientX - centerX) / (rect.width / 2);
-      const percentY = (event.clientY - centerY) / (rect.height / 2);
-      const rotateY = Math.max(-1, Math.min(1, percentX)) * strength; // left/right
-      const rotateX = Math.max(-1, Math.min(1, -percentY)) * strength; // up/down
-      card.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(0)`;
+  // Mobile navigation
+  function closeMenu() {
+    header?.setAttribute("data-open", "false");
+    navToggleBtn?.setAttribute("aria-expanded", "false");
+  }
+
+  function openMenu() {
+    header?.setAttribute("data-open", "true");
+    navToggleBtn?.setAttribute("aria-expanded", "true");
+  }
+
+  function toggleMenu() {
+    const isOpen = header?.getAttribute("data-open") === "true";
+    (isOpen ? closeMenu : openMenu)();
+  }
+
+  function handleNavLinkClick(e) {
+    const target = e.target;
+    if (target instanceof HTMLAnchorElement) {
+      closeMenu();
+    }
+  }
+
+  function handleEscapeClose(e) {
+    if (e.key === "Escape") closeMenu();
+  }
+
+  function handleOutsideClick(e) {
+    if (!header) return;
+    if (header.getAttribute("data-open") !== "true") return;
+    if (!header.contains(e.target)) closeMenu();
+  }
+
+  // Scroll reveal
+  function setupReveal() {
+    const revealEls = Array.from(document.querySelectorAll(".reveal"));
+    if (revealEls.length === 0) return;
+
+    const motionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (motionReduced) {
+      revealEls.forEach(el => el.classList.add("is-visible"));
+      return;
     }
 
-    function resetTilt(card) {
-      card.style.transform = 'perspective(900px) rotateX(0) rotateY(0) translateZ(0)';
-    }
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.15 }
+    );
 
-    tiltCards.forEach(card => {
-      if (prefersReducedMotion) return;
-      card.addEventListener('pointermove', (e) => handlePointerMove(e, card));
-      card.addEventListener('pointerleave', () => resetTilt(card));
-      card.addEventListener('blur', () => resetTilt(card));
-    });
-
-    window.addEventListener('blur', () => tiltCards.forEach(resetTilt));
+    revealEls.forEach(el => observer.observe(el));
   }
 
-  // Animated counters --------------------------------------------------------
-  const counters = Array.from(document.querySelectorAll('[data-count]'));
-  if (counters.length) {
+  // Active section highlighting
+  function setupActiveNav() {
+    if (!primaryMenu) return;
+    const links = Array.from(primaryMenu.querySelectorAll('a[href^="#"]'));
+    if (links.length === 0) return;
+
+    const map = links
+      .map(link => {
+        const id = decodeURIComponent(link.getAttribute('href') || '').replace('#','');
+        const section = id ? document.getElementById(id) : null;
+        return { link, section };
+      })
+      .filter(x => x.section);
+
+    function updateActive() {
+      const y = window.scrollY + 120; // header offset
+      let current = null;
+      for (const { link, section } of map) {
+        const top = section.offsetTop;
+        if (top <= y) current = link;
+      }
+      links.forEach(l => l.removeAttribute('aria-current'));
+      if (current) current.setAttribute('aria-current', 'location');
+    }
+
+    updateActive();
+    window.addEventListener('scroll', updateActive, { passive: true });
+  }
+
+  // Counters
+  function setupCounters() {
+    const counters = Array.from(document.querySelectorAll("[data-count]"));
+    if (counters.length === 0) return;
+
     function animateCount(el) {
-      const target = Number(el.getAttribute('data-count') || '0');
-      const suffix = el.getAttribute('data-suffix') || '';
-      const durationMs = 1000 + Math.min(2000, target * 2);
+      const targetStr = el.getAttribute("data-count") || "0";
+      const target = parseFloat(targetStr);
+      const isInt = Number.isInteger(Number(targetStr));
+      const duration = 1200;
       const start = performance.now();
 
-      function frame(now) {
-        const progress = Math.min(1, (now - start) / durationMs);
+      function tick(now) {
+        const elapsed = now - start;
+        const progress = Math.min(1, elapsed / duration);
         const eased = 1 - Math.pow(1 - progress, 3);
-        const current = Math.round(target * eased);
-        el.textContent = `${current.toLocaleString()}${suffix}`;
-        if (progress < 1) requestAnimationFrame(frame);
+        const value = target * eased;
+        el.textContent = isInt ? Math.round(value).toLocaleString() : value.toFixed(1);
+        if (progress < 1) requestAnimationFrame(tick);
       }
 
-      requestAnimationFrame(frame);
+      requestAnimationFrame(tick);
     }
 
-    // Start when visible
-    const io = new IntersectionObserver((entries, observer) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          const valEl = entry.target.querySelector('.value') || entry.target;
-          if (valEl) animateCount(valEl);
-          observer.unobserve(entry.target);
-        }
-      }
-    }, { threshold: 0.4 });
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const numEl = entry.target.querySelector('.num');
+            if (numEl) animateCount(numEl);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.35 }
+    );
 
-    counters.forEach(el => {
-      const parentStat = el.closest('.stat') || el;
-      io.observe(parentStat);
+    document.querySelectorAll('.stat').forEach(s => observer.observe(s));
+  }
+
+  // 3D Tilt
+  function setupTilt() {
+    const tiltEls = Array.from(document.querySelectorAll('[data-tilt]'));
+    if (tiltEls.length === 0) return;
+
+    const motionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (motionReduced) return;
+
+    function handleMove(e, el) {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const px = (e.clientX - cx) / (rect.width / 2);
+      const py = (e.clientY - cy) / (rect.height / 2);
+      const rotateX = (py * -8).toFixed(2);
+      const rotateY = (px * 8).toFixed(2);
+      el.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+
+      const mx = ((e.clientX - rect.left) / rect.width) * 100;
+      const my = ((e.clientY - rect.top) / rect.height) * 100;
+      el.style.setProperty('--mx', `${mx}%`);
+      el.style.setProperty('--my', `${my}%`);
+    }
+
+    function resetTilt(el) {
+      el.style.transform = "perspective(900px) rotateX(0) rotateY(0)";
+    }
+
+    tiltEls.forEach(el => {
+      el.addEventListener('mouseenter', () => el.style.transition = 'transform .12s ease');
+      el.addEventListener('mousemove', (e) => handleMove(e, el));
+      el.addEventListener('mouseleave', () => { el.style.transition = 'transform .35s ease'; resetTilt(el); });
+      el.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        if (!t) return;
+        handleMove(t, el);
+      }, { passive: true });
+      el.addEventListener('touchend', () => resetTilt(el));
     });
   }
 
-  // Current year in footer ---------------------------------------------------
-  const yearEl = document.getElementById('year');
-  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+  // Sticky header shadow on scroll
+  function setupHeaderShadow() {
+    function onScroll() {
+      const y = window.scrollY;
+      const scrolled = y > 6;
+      header?.classList.toggle('header--scrolled', scrolled);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  // Init
+  document.addEventListener("DOMContentLoaded", () => {
+    loadInitialTheme();
+    prefersDark.addEventListener('change', handleSystemThemeChange);
+
+    themeToggleBtn?.addEventListener("click", toggleTheme);
+
+    navToggleBtn?.addEventListener("click", toggleMenu);
+    menu?.addEventListener("click", handleNavLinkClick);
+    document.addEventListener("keydown", handleEscapeClose);
+    document.addEventListener('click', handleOutsideClick);
+
+    setupReveal();
+    setupActiveNav();
+    setupCounters();
+    setupTilt();
+    setupHeaderShadow();
+
+    const yearEl = document.querySelector('[data-year]');
+    if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+  });
 })();
